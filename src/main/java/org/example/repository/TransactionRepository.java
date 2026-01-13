@@ -20,18 +20,27 @@ public class TransactionRepository{
         if (transactions == null || transactions.isEmpty()){
             return 0;
         }
-        String sql = "INSERT INTO mb_transaction(trace, from_acc, tranx_time, amount, to_acc, remark, tranx_type) VALUES (?,?,?,?,?,?,?)";
+        String sql = "MERGE INTO mb_transaction t " +
+                     "USING (SELECT ? AS trace FROM dual) s " +
+                     "ON (t.trace = s.trace)" +
+                     "WHEN NOT MATCHED THEN " +
+                     "INSERT (trace, from_acc, tranx_time, amount, to_acc, remark, tranx_type) " +
+                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
         int[] results = jdbc.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
                 Transaction txn = transactions.get(i);
+                //Checking the condition if trace matches any trace in DB
                 ps.setString(1, txn.getTrace());
-                ps.setString(2, txn.getFromAcc());
-                ps.setObject(3, txn.getTranxTime());
-                ps.setBigDecimal(4, txn.getAmount());
-                ps.setString(5, txn.getToAcc());
-                ps.setString(6, txn.getRemark());
-                ps.setString(7, txn.getTranxType());
+
+                //Trace for insert
+                ps.setString(2, txn.getTrace());
+                ps.setString(3, txn.getFromAcc());
+                ps.setObject(4, txn.getTranxTime());
+                ps.setBigDecimal(5, txn.getAmount());
+                ps.setString(6, txn.getToAcc());
+                ps.setString(7, txn.getRemark());
+                ps.setString(8, txn.getTranxType());
             }
 
             @Override
@@ -39,7 +48,14 @@ public class TransactionRepository{
                 return transactions.size();
             }
         });
-        return results.length;
+
+        int actualInserts = 0;
+        for (int result : results){
+            if (result > 0){
+                actualInserts++;
+            }
+        }
+        return actualInserts;
     }
 
     //Delete all data in Oracle
@@ -48,6 +64,9 @@ public class TransactionRepository{
         jdbc.update(sql);
     }
 
+    public void findAllTrace(){
+
+    }
 
     //Just for learning:P
     //insert 1 object(normal insert)

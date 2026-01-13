@@ -1,8 +1,8 @@
 package org.example.service;
 
+import com.monitorjbl.xlsx.StreamingReader;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.example.model.Transaction;
 import org.example.repository.TransactionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +15,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Timer;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -29,14 +26,13 @@ public class TransactionService{
 
     private static final int BATCH_INSERT_LIMIT = 5000;
 
-    private static final DataFormatter DATA_FORMATTER = new DataFormatter();
-
     //Make sure whatever excel format is, just need to be similar to LocalDateTime format
     private static final List<DateTimeFormatter> ACCEPTED_FORMATTERS = List.of(
             DateTimeFormatter.ofPattern("d/M/yy H:mm"),
             DateTimeFormatter.ofPattern("d/M/yyyy H:mm"),
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm:ss a", new Locale("vi", "VN")), //process SA/CH
             DateTimeFormatter.ofPattern("dd/MM/yyyy hh:mm:ss a", Locale.ENGLISH),        //process AM/PM
             DateTimeFormatter.ISO_LOCAL_DATE_TIME
@@ -56,62 +52,93 @@ public class TransactionService{
     }
 
     public void ImportExcel(InputStream inputStream) throws IOException {
-        //Open excel file and read it
-        Workbook workbook = new XSSFWorkbook(inputStream);
-        Sheet sheet = workbook.getSheetAt(0);
-
         long startTime = System.currentTimeMillis();
-        int success_row = 0;
-        int failed_row = 0;
 
-        List<Transaction> validTransactionList = new ArrayList<>(BATCH_INSERT_LIMIT);
-        for (Row row : sheet){
-            //Skip header of the excel file
-            if (row.getRowNum() == 0){
-                continue;
+
+        try (//Open excel file and read it
+            Workbook workbook = StreamingReader.builder()
+                .rowCacheSize(100)
+                .bufferSize(4096)
+                .open(inputStream)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+
+            int success_row = 0;
+            int failed_row = 0;
+            int duplicate_row = 0;
+            int db_duplicate_row = 0;
+            int total_valid_row = 0;
+
+            List<Transaction> validTransactionList = new ArrayList<>(BATCH_INSERT_LIMIT);
+
+            //Check if trace data duplicate
+            Set<String> seenTrace = new HashSet<>();
+
+            for (Row row : sheet) {
+                //Skip header of the excel file
+                if (row.getRowNum() == 0) {
+                    continue;
+                }
+
+                String trace = getCellValue(row.getCell(0));
+                String tranxTimeStr = getCellValue(row.getCell(2));
+                String amountStr = getCellValue(row.getCell(3));
+                //log.info("Tranx_Time: "+ tranxTimeStr);
+                //log.info("Amount money: "+ amountStr);
+
+                if (seenTrace.contains(trace)) {
+                    log.info("Row "+ (row.getRowNum() + 1) + " skipped due to duplicate trace: " + trace);
+                    duplicate_row++;
+                    continue;
+                }
+
+                String errorMsg = validateData(tranxTimeStr, amountStr);
+
+                //If data are valid => make them become an object and put it into valid transactions list
+                if (errorMsg.isEmpty()) {
+                    Transaction txn = new Transaction();
+                    txn.setTrace(trace);
+                    txn.setFromAcc(getCellValue(row.getCell(1)));
+                    txn.setTranxTime(tryParseDateTime(tranxTimeStr));
+                    txn.setAmount(new BigDecimal(amountStr));
+                    txn.setToAcc(getCellValue(row.getCell(4)));
+                    txn.setRemark(getCellValue(row.getCell(5)));
+                    txn.setTranxType(getCellValue(row.getCell(6)));
+
+                    validTransactionList.add(txn);
+                    seenTrace.add(trace);
+                    total_valid_row++;
+
+                } else {
+                    log.info("Row " + (row.getRowNum() + 1) + " error: " + errorMsg);
+                    failed_row++;
+                }
+
+                //If list size reach limit of batch insert
+                if (validTransactionList.size() == BATCH_INSERT_LIMIT) {
+                    int inserted = repository.batchInsert(validTransactionList);
+                    success_row += inserted;
+                    db_duplicate_row += (validTransactionList.size() - inserted);
+                    validTransactionList.clear();
+                }
             }
 
-            //Making tranxTime and amount become String format to validate them
-            String tranxTimeStr = getCellValue(row.getCell(2));
-            String amountStr = getCellValue(row.getCell(3));
-
-            String errorMsg = validateData(tranxTimeStr, amountStr);
-
-            //If data are valid => make them become an object and put it into valid transactions list
-            if (errorMsg.isEmpty()) {
-                Transaction txn = new Transaction();
-                txn.setTrace(getCellValue(row.getCell(0)));
-                txn.setFromAcc(getCellValue(row.getCell(1)));
-                txn.setTranxTime(tryParseDateTime(tranxTimeStr));
-                txn.setAmount(new BigDecimal(amountStr));
-                txn.setToAcc(getCellValue(row.getCell(4)));
-                txn.setRemark(getCellValue(row.getCell(5)));
-                txn.setTranxType(getCellValue(row.getCell(6)));
-
-                validTransactionList.add(txn);
-                success_row++;
-            } else {
-                log.info("Row " + (row.getRowNum() + 1) + " error: "+ errorMsg);
-                failed_row--;
+            if (!validTransactionList.isEmpty()) {
+                int inserted = repository.batchInsert(validTransactionList);
+                success_row += inserted;
+                db_duplicate_row += (validTransactionList.size() - inserted);
             }
 
-            //If list size reach limit of batch insert
-            if (validTransactionList.size() == BATCH_INSERT_LIMIT){
-                repository.batchInsert(validTransactionList);
-                validTransactionList.clear();
-            }
+            long endTime = System.currentTimeMillis();
+            double duration = (endTime - startTime) / 1000.0;
+
+            log.info("Time duration to complete the import excel: " + duration +" s");
+            log.info("Total valid rows: " + total_valid_row);
+            log.info("Duplicate rows in excel: " + duplicate_row);
+            log.info("Already exist in Oracle (skipped): " + db_duplicate_row);
+            log.info("Success rows (insertes row): " + success_row);
+            log.info("Failed rows (wrong format): " + failed_row);
         }
-
-        if (!validTransactionList.isEmpty()) {
-            repository.batchInsert(validTransactionList);
-        }
-
-        long endTime = System.currentTimeMillis();
-        double duration = (endTime - startTime)/1000.0;
-        log.info("Time duration to complete the import excel: "+ duration);
-        log.info("success rows: " + success_row);
-        log.info("Failed rows: " + failed_row);
-        workbook.close();
     }
 
     //Check tranxTime and amount format
@@ -141,7 +168,22 @@ public class TransactionService{
         if (cell == null){
             return "";
         }
-        return DATA_FORMATTER.formatCellValue(cell).trim();
+
+        CellType cellType = cell.getCellType();
+
+        if (cellType == CellType.STRING) {
+            return cell.getStringCellValue().trim();
+        } else if (cellType == CellType.NUMERIC) {
+            double numericValue = cell.getNumericCellValue();
+            return BigDecimal.valueOf(numericValue).toPlainString();
+        } else if (cellType == CellType.BOOLEAN) {
+            return String.valueOf(cell.getBooleanCellValue());
+        } else if (cellType == CellType.BLANK) {
+            return "";
+        } else {
+            // Date cells và các type khác sẽ dùng toString()
+            return cell.toString().trim();
+        }
     }
 
     @Transactional
