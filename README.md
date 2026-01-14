@@ -1,4 +1,5 @@
 SPRING BOOT IMPORT EXCEL TRANSACTIONS TO ORACLE DB
+
 The project requires to tranfer all the data from excel file to oracle DB maybe up to 10m rows, so the main logic here are:
 Make sure the project can read file excel(WorkBook and StreamingReader) making loop all the rows in it => Check the tranx_Time (LocalDateTime), amount (money) format => If that row valid then make them become an object and put them into valid list => Check “tranx_time” and “amount” if they are valid => If the list reach 5000 objects, batch insert them into OracleDB then clean the list, keep continue the loop => If after the loop end there are no more rows in excel file and the valid list didn’t reach 5000 objects yet still having objects in it, call batch insert all the remaining of that valid list.
 
