@@ -19,11 +19,13 @@ TECHNOLOGIES AND LIBRARY USED IN THIS PROJECT
 	- Lombok: To make code become cleaner especially in model without write getter, setter, constructor too long.
 	- Maven: Manage all the library
 
+
 DURATION OF THE PROJECT
 To learn and make this project: 2 weeks and 1 day
 -	10 days to learn and to familar with java syntax, spring, library, project structure, annotation, different between spring java and nodejs, what are the laws of it,.... => After 10 days know how to do batch Insert and CRUD with spring java and done a basic web.
 -	4 days to make this project completely.
 -	1 day to fix the bugs and upgrade it to handle from 50k to 1m rows
+
 
 A.I FOR LEARNING AND MAKING THIS PROJECT
 - Claude: ask for logics of the project and fixing code (not much)
@@ -32,6 +34,7 @@ A.I FOR LEARNING AND MAKING THIS PROJECT
 => Not using much claude because this project is small, gemini explaining better.
 => At first i just using perplexity to search docs to learn, asking how the logic of the project but the speed is too slow, 7 days just can only familar with java syntax and how it work, there too many library and tools to learn. So i decide to used AI on the next 8 days to learn and my learning speed really has increased faster.
 => Sadly i want to learn and do it by not using AI but i have to, since there are too many thing, library i don’t know yet or forgot like StreamingReader, handle duplicate with hashSet and merrge, how to solve excel problem with format similar to LocalDateTime(it keep auto reformat tranx_time data), generate excel file and the index.html to test.
+
 
 HOW TO RUN THIS PROJECT
 Step 1: git clone it to your pc in any folder you want to.
@@ -56,6 +59,7 @@ Step 4: run the main function in BankApplication, once it run come to the localh
 
 Step 5: After imported the excel file and clicked upload it, you will see in the terminal how many rows success and failed, dupicate “trace” in excel file and Oracle DB, duration of the function tranfering data from that excel file to Oracle. 
      Note: If any row wrong format “tranx_time” or “amount”, it will print error of that row number and tell which one wrong format(maybe both) then that row will not insert to the Oracle; also if “trace” duplicate in excel file it will have hashSet check on it, if not but Oracle DB already have that “trace” in it, then with merge we can check condition between trace in excel and in Oracle whenever they are matched or not. With hashSet and merge sql command we can stop worry about duplicate “trace” will cause function to stop.
+
 
 TEST CASE AND VALIDATION
      Case 1: Standard import excel file
@@ -82,21 +86,25 @@ TEST CASE AND VALIDATION
 	- Input: Amount column contains non-numeric data or “,”
 	- Result: The system will check if the amount data contain any thing that not BigDecimal. If any row invalid then skip that row then report which row error amount format.
 
+
 WHAT NEED TO IMPROVE THE PROJECT TO MATCH THE REQUIREMENT 10M RECORDS EXCEL
 - MultiThread.
 - Handle multiple excel files since the requirement need to be 10 files, each contain 1m rows.
 - Need to improve the speed since 1m rows file need around 70s to read.
 - FE (Optional).
 
+
 ISSUE MAY HAPPEN IN THE FUTURE
 - Library: StreamingReader working okay but we have to downgrade apache POI to 4.1.2 version to used it, may have some issue with excel nowaday since the libaries are too old.
 - Memory: StreamingReader manage 1m rows excel file but it run avarage 28% of my CPU (16GB  Ram) so who know what will happen if we update the project to make it work with 10m rows file.
+
 
 WHAT I HAD GAINED FROM THIS PROJECT
 - Adapt good with Java and Spring Boot => confidence enough to make java website.
 - Optimize speed of CRUD (Batch Insert).
 - Must expect the case limit of memory (excel file too big to handle).
 - More understand the structure of java code.
+
  
 WHAT NEED TO IMPROVE
 - Learning speed still too slow,  i lost 10 days just to understand all the basic of spring web.
