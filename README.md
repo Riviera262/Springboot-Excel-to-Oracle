@@ -4,16 +4,17 @@ The project requires to tranfer all the data from excel file to oracle DB maybe 
 Make sure the project can read file excel(WorkBook and StreamingReader) making loop all the rows in it => Check the tranx_Time (LocalDateTime), amount (money) format => If that row valid then make them become an object and put them into valid list => Check “tranx_time” and “amount” if they are valid => If the list reach 5000 objects, batch insert them into OracleDB then clean the list, keep continue the loop => If after the loop end there are no more rows in excel file and the valid list didn’t reach 5000 objects yet still having objects in it, call batch insert all the remaining of that valid list.
 
 TECHNOLOGIES AND LIBRARY USED IN THIS PROJECT
+
      Frameworks:
 	- JDK 21: One of the newest java stable framework to work with.
-  - Spring Boot: To manage dependencies and injection and making java project become more modern.
+	- Spring Boot: To manage dependencies and injection and making java project become more modern.
 
      Libraries:
-  - Apache POI: To work with office file such as excel, word,....
-  - StreamingReader: Normal apache poi WorkBook can’t handle if the excel file too big, so StreamingReader is the solution. It can handle massive excel file without worrying about out of memory. But due to StreamingReader is too old so we have to downgrade apache POI to 4.1.2 version.
-  - Oracle JDBC11 Driver: Basic connection and work with Oracle DB
-  - Starter-JDBC: Clean code connection with Oracle JDBC in project, with this we don’t have to write all what JDBC connection required.
-  - Starter-Web: To make a basic web FE to test REST and to make user can be more comfortable with using this project.
+	- Apache POI: To work with office file such as excel, word,....
+	- StreamingReader: Normal apache poi WorkBook can’t handle if the excel file too big, so StreamingReader is the solution. It can handle massive excel file without worrying about out of memory. But due to StreamingReader is too old so we have to downgrade apache POI to 4.1.2 version.
+	- Oracle JDBC11 Driver: Basic connection and work with Oracle DB
+	- Starter-JDBC: Clean code connection with Oracle JDBC in project, with this we don’t have to write all what JDBC connection required.
+	- Starter-Web: To make a basic web FE to test REST and to make user can be more comfortable with using this project.
 
     Tools:
 	- Lombok: To make code become cleaner especially in model without write getter, setter, constructor too long.
@@ -40,6 +41,8 @@ HOW TO RUN THIS PROJECT
 Step 1: git clone it to your pc in any folder you want to.
 Step 2: Open it and put file application.properties or yml in resources folderm for example this is my application.properties, username and password are for connection with Oracle DB.
 
+
+
 spring.datasource.url=jdbc:oracle:thin:@localhost:1521/XEPDB1
 spring.datasource.username=Your-username
 spring.datasource.password=Your-password
@@ -47,6 +50,7 @@ spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
 
 spring.servlet.multipart.max-file-size=500MB
 spring.servlet.multipart.max-request-size=500MB
+
   
 
 Step 3(only if you don’t have any excel with too much rows to test): open DataGenerator in the same folder with BankApplication(org.example), run the main function and it will generate an excel file in the same folder root, pom.xml. You can also edit in the loop to change 1m to any excel size you want(maximum is 1m rows per excel file). After you successfully generate an excel file, it will automatic make amount data entire collumn contain “,” so we have to solve it. Open that excel file, click to the collumn ”D” => right mouse => formatCell => number => change decimal places to “0”.
